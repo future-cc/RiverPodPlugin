@@ -16,18 +16,20 @@ class CreateSimplePageAction : AnAction() {
         if (project == null || dir == null) return
 
         // 弹出输入框
-        val pageName = Messages.showInputDialog(
+        val fileName = Messages.showInputDialog(
             project,
-            "Enter page name (e.g. main_page):", "Riverpod Page Generator",
+            "Enter file name (e.g. home):", "Riverpod Page Generator",
             Messages.getQuestionIcon()
         )
-        if (pageName == null || pageName.isEmpty()) return
+        if (fileName == null || fileName.isEmpty()) return
+
+        val pageName = "${fileName}_page"
 
         // 把所有写操作包到 runWriteAction 里
         ApplicationManager.getApplication().runWriteAction(Runnable {
             try {
                 // 创建文件夹
-                val folder: VirtualFile = dir.createChildDirectory(this, pageName)
+                val folder: VirtualFile = dir.createChildDirectory(this, fileName)
 
                 // 大驼峰类名
                 val className = toPascalCase(pageName)
