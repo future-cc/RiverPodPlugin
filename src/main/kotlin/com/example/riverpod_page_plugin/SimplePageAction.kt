@@ -50,7 +50,7 @@ class CreateSimplePageAction : AnAction() {
 
                             @override
                             Widget build(BuildContext context, WidgetRef ref) {
-                              var counter = ref.watch(mainPageControllerProvider);
+                              var counter = ref.watch(${fileName}PageControllerProvider);
                               return Scaffold(
                                 appBar: AppBar(title: Text('appbarTitle')),
                                 body: _buildView(context),
