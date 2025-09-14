@@ -27,7 +27,7 @@ class CreateSimplePageAction : AnAction() {
         ApplicationManager.getApplication().runWriteAction(Runnable {
             try {
                 // 创建文件夹
-                val folder = dir.createChildDirectory(this, pageName)
+                val folder: VirtualFile = dir.createChildDirectory(this, pageName)
 
                 // 大驼峰类名
                 val className = toPascalCase(pageName)
@@ -42,19 +42,22 @@ class CreateSimplePageAction : AnAction() {
                         class $className extends ConsumerWidget {
                           const $className({super.key});
                         
-                          @override
-                          Widget build(BuildContext context, WidgetRef ref) {
-                            var counter = ref.watch(${className}ControllerProvider);
-                            return Scaffold(
-                              appBar: AppBar(title: Text('appbarTitle')),
-                              body: Text(""),
-                            );
-                          }
+                            Widget _buildView(BuildContext context) {
+                              return Text("$pageName");
+                            }
+
+                            @override
+                            Widget build(BuildContext context, WidgetRef ref) {
+                              var counter = ref.watch(mainPageControllerProvider);
+                              return Scaffold(
+                                appBar: AppBar(title: Text('appbarTitle')),
+                                body: _buildView(context),
+                              );
+                            }
                         }
                     """.trimIndent()
+                createDartFile(folder,  "${pageName}.dart", pageContent)
 
-                val pageFile = folder.createChildData(this, "$pageName.dart")
-                VfsUtil.saveText(pageFile, pageContent)
 
                 // controller.dart
                 val controllerContent =
@@ -64,7 +67,7 @@ class CreateSimplePageAction : AnAction() {
                         part '${pageName}_controller.g.dart';
                         
                         @riverpod
-                        class ${className}Controller extends _\$${className}Controller {
+                        class ${className}Controller extends _$${className}Controller {
                         
                           @override
                           int build() {
@@ -81,13 +84,25 @@ class CreateSimplePageAction : AnAction() {
                           }
                         } 
                     """.trimIndent()
+                createDartFile(folder,  "${pageName}_controller.dart", controllerContent)
 
-                val controllerFile = folder.createChildData(this, pageName + "_controller.dart")
-                VfsUtil.saveText(controllerFile, controllerContent)
+
+                // index.dart
+                val indexContent =
+                    """
+                        import '${pageName}.dart';
+                        import '${pageName}_controller.dart';
+                    """.trimIndent()
+                createDartFile(folder,  "index.dart", indexContent)
             } catch (ex: IOException) {
                 Messages.showErrorDialog(project, "Failed to create files: " + ex.message, "Error")
             }
         })
+    }
+
+    private fun createDartFile(folder: VirtualFile, pageName: String, dartContent: String) {
+        val controllerFile = folder.createChildData(this, pageName)
+        VfsUtil.saveText(controllerFile, dartContent)
     }
 
     private fun toPascalCase(name: String): String {
