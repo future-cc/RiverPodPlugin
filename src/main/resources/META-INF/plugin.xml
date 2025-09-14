@@ -1,0 +1,23 @@
+<idea-plugin>
+    <id>com.example.riverpage</id>
+    <name>River Page Generator</name>
+    <version>1.0.0</version>
+    <vendor email="you@example.com">Your Name</vendor>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <actions>
+        <!-- 父菜单 River Page -->
+        <group id="RiverPageGroup"
+               text="RiverPod Page"
+               popup="true">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+
+            <!-- 子菜单 Simple Page -->
+            <action id="RiverPodPage.SimplePageAction"
+                    class="com.example.riverpod_page_plugin.CreateSimplePageAction"
+                    text="Simple Page"
+                    description="Generate a simple Riverpod page"/>
+        </group>
+    </actions>
+</idea-plugin>
