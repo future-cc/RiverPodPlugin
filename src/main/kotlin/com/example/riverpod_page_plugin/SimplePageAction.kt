@@ -8,6 +8,8 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import java.io.IOException
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 class CreateSimplePageAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
@@ -16,86 +18,114 @@ class CreateSimplePageAction : AnAction() {
         if (project == null || dir == null) return
 
         // 弹出输入框
-        val fileName = Messages.showInputDialog(
-            project,
-            "Enter file name (e.g. home):", "Riverpod Page Generator",
-            Messages.getQuestionIcon()
-        )
-        if (fileName == null || fileName.isEmpty()) return
+        val (folderName, description) = FolderNameInputDialog.showTwoInputDialog()
+        if (folderName != null) {
+            println("Folder: $folderName")
+            println("Description: $description")
+        }
 
-        val pageName = "${fileName}_page"
+        if (folderName == null || folderName.isEmpty()) return
 
         // 把所有写操作包到 runWriteAction 里
         ApplicationManager.getApplication().runWriteAction(Runnable {
             try {
+                val currentDate: String = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))
                 // 创建文件夹
-                val folder: VirtualFile = dir.createChildDirectory(this, fileName)
+                val folder: VirtualFile = dir.createChildDirectory(this, folderName)
 
+                val pageName = "${folderName}_page"
                 // 大驼峰类名
-                val className = toPascalCase(pageName)
+                val classNamePrefix = toPascalCase(pageName)
 
-                // page.dart
-                val pageContent =
+                val providerPrefix = classNamePrefix.take(1).lowercase() + classNamePrefix.substring(1)
+                // game_setting_page.dart
+                val pageCode =
                     """
-                        import '${pageName}_controller.dart';
                         import 'package:flutter/material.dart';
                         import 'package:flutter_riverpod/flutter_riverpod.dart';
+                        import '${folderName}_notifier.dart';
+                        import '${folderName}_state.dart';
                         
-                        class $className extends ConsumerWidget {
-                          const $className({super.key});
-                        
-                            Widget _buildView(BuildContext context) {
-                              return Text("$pageName");
-                            }
-
-                            @override
-                            Widget build(BuildContext context, WidgetRef ref) {
-                              var counter = ref.watch(${fileName}PageControllerProvider);
-                              return Scaffold(
-                                appBar: AppBar(title: Text('appbarTitle')),
-                                body: _buildView(context),
-                              );
-                            }
+                        /// $description page
+                        ///
+                        /// kane $currentDate
+                        class ${classNamePrefix}Page extends ConsumerStatefulWidget {
+                          const ${classNamePrefix}Page({super.key});
+                          @override
+                          ConsumerState<${classNamePrefix}Page> createState() => _${classNamePrefix}PageState();
+                        }
+    
+                        class _${classNamePrefix}PageState extends ConsumerState<${classNamePrefix}Page> {
+                          @override
+                          void initState() {
+                            super.initState();
+                          }
+    
+                          @override
+                          Widget build(BuildContext context) {                                   
+                            final state = ref.watch(${providerPrefix}NotifierProvider);
+                            final notifier = ref.read(${providerPrefix}NotifierProvider.notifier);
+    
+                            return Scaffold(
+                              body: Container(
+                                color: Colors.white,
+                                child: _buildView(state, notifier),
+                              ),
+                            );
+                          }
+    
+                          Widget _buildView(${classNamePrefix}State state, ${classNamePrefix}Notifier notifier) {
+                            return Text("${description}页面");
+                          }
                         }
                     """.trimIndent()
-                createDartFile(folder,  "${pageName}.dart", pageContent)
+                createDartFile(folder,  "${folderName}_page.dart", pageCode)
 
-
-                // controller.dart
-                val controllerContent =
+                // game_setting_notifier.dart
+                val notifierCode =
                     """
-                        import 'package:flutter/cupertino.dart';
                         import 'package:riverpod_annotation/riverpod_annotation.dart';
-                        part '${pageName}_controller.g.dart';
-                        
+                        import '${folderName}_state.dart';
+                        part '${folderName}_notifier.g.dart';
+    
+                        /// $description Notifier
+                        ///
+                        /// Kane $currentDate
                         @riverpod
-                        class ${className}Controller extends _$${className}Controller {
-                        
+                        class ${classNamePrefix}Notifier extends _$${classNamePrefix}Notifier {
+    
                           @override
-                          int build() {
+                          ${classNamePrefix}State build() {
                             // 初始状态
-                            ref.onDispose(() => dispose());
-                            return 1;
+                            return ${classNamePrefix}State.initial();
                           }
-                        
-                          void updateData() {
-                            state++;
-                          }
-                        
-                          void dispose() {
-                          }
-                        } 
+                        }
                     """.trimIndent()
-                createDartFile(folder,  "${pageName}_controller.dart", controllerContent)
+
+                createDartFile(folder,  "${folderName}_notifier.dart", notifierCode)
 
 
-                // index.dart
-                val indexContent =
-                    """
-                        import '${pageName}.dart';
-                        import '${pageName}_controller.dart';
+                // game_detail_state.dart
+                val stateCode = """
+                        import 'package:freezed_annotation/freezed_annotation.dart';
+                        part '${folderName}_state.freezed.dart';
+    
+                        /// $description state
+                        ///
+                        /// kane ${currentDate}
+                        @freezed
+                        abstract class ${classNamePrefix}State with _$${classNamePrefix}State {    
+                          const factory ${classNamePrefix}State({
+                              @Default(0) int defaultValue,
+                          }) = _${classNamePrefix}State;
+    
+                          /// 初始状态
+                          factory ${classNamePrefix}State.initial() {
+                            return const ${classNamePrefix}State();
+                          }
+                        }
                     """.trimIndent()
-                createDartFile(folder,  "index.dart", indexContent)
+                createDartFile(folder,  "${folderName}_state.dart", stateCode)
             } catch (ex: IOException) {
                 Messages.showErrorDialog(project, "Failed to create files: " + ex.message, "Error")
             }
